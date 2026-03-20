@@ -16,19 +16,17 @@ FinVault is built using:
 ### 🐛 Bug 1: Race Condition on Fund Transfer
 **Issue**: Concurrent transfers can cause account balances to go negative, even if the user doesn't have the funds.
 **Location**: `server/routes.ts` - `POST /api/transfers`
-**Technical Detail**: The code performs a "check-then-act" operation without proper database locking. There's an intentional `setTimeout` to widen the race window.
-**Fix**: Use `FOR UPDATE` row-level locking or atomic SQL updates within a transaction.
+**Technical Detail**: The code performs a "check-then-act" operation without proper database locking. There's an intentional `setTimeout` to widen the race 
 
 ### 🐛 Bug 2: N+1 Query Performance Issue
 **Issue**: The transaction history page slows down significantly as the number of transactions grows.
 **Location**: `server/routes.ts` - `GET /api/accounts/:accountId/transactions`
 **Technical Detail**: For every transaction returned, the server makes a separate database call to fetch the category name. This is a classic N+1 problem.
-**Fix**: Use a SQL `JOIN` to fetch transactions and categories in a single query.
 
 ### 🐛 Bug 3: JWT Security / Middleware (Implicit)
 **Issue**: The current middleware in `server/routes.ts` is simple and might need hardening or token blacklisting for logouts.
 
-## Feature Implementations (Stubs)
+## Feature Implementations
 
 ### 🚀 Feature 1: Financial Analytics
 **Goal**: Implement the `/analytics` page to show spending trends using Recharts.
