@@ -4,22 +4,40 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
 const JWT_SECRET = process.env.SESSION_SECRET || "hackathon_secret";
+
+const tokenBlacklist = new Map<string, number>();
+
+setInterval(() => {
+  const now = Date.now();
+  tokenBlacklist.forEach((exp, token) => {
+    if (exp < now) tokenBlacklist.delete(token);
+  });
+}, 30 * 60 * 1000);
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Middleware to authenticate JWT
   const authenticateToken = (req: any, res: any, next: any) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
-    if (token == null) return res.status(401).json({ message: "No token provided" });
+    if (!token) return res.status(401).json({ message: "No token provided" });
+
+    if (tokenBlacklist.has(token)) {
+      return res.status(401).json({ message: "Token revoked" });
+    }
 
     jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-      if (err) return res.status(403).json({ message: "Invalid token" });
+      if (err) {
+        if (err.name === 'TokenExpiredError') {
+          return res.status(401).json({ message: "Token expired" });
+        }
+        return res.status(403).json({ message: "Invalid token" });
+      }
       req.user = user;
       next();
     });
@@ -35,7 +53,7 @@ export async function registerRoutes(
       }
       
       const user = await storage.createUser(input);
-      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+      const token = jwt.sign({ id: user.id, email: user.email, jti: crypto.randomUUID() }, JWT_SECRET, { expiresIn: '24h' });
       res.status(201).json({ token, user });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -55,7 +73,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+      const token = jwt.sign({ id: user.id, email: user.email, jti: crypto.randomUUID() }, JWT_SECRET, { expiresIn: '24h' });
       res.status(200).json({ token, user });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -63,6 +81,13 @@ export async function registerRoutes(
       }
       res.status(500).json({ message: "Internal server error" });
     }
+  });
+
+  app.post(api.auth.logout.path, authenticateToken, async (req: any, res) => {
+    const token = req.headers['authorization']!.split(' ')[1];
+    const decoded = jwt.decode(token) as { exp: number };
+    tokenBlacklist.set(token, decoded.exp * 1000);
+    res.status(200).json({ message: "Logged out successfully" });
   });
 
   // Protected routes

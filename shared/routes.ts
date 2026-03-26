@@ -22,6 +22,11 @@ export const api = {
       input: z.object({ email: z.string().email(), password: z.string() }),
       responses: { 200: z.object({ token: z.string(), user: z.custom<typeof users.$inferSelect>() }), 401: errorSchemas.unauthorized },
     },
+    logout: {
+      method: 'POST' as const,
+      path: '/api/auth/logout' as const,
+      responses: { 200: z.object({ message: z.string() }) },
+    },
   },
   accounts: {
     list: {
