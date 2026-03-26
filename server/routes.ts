@@ -33,7 +33,7 @@ export async function registerRoutes(
       if (existingUser) {
         return res.status(400).json({ message: "Email already exists" });
       }
-      
+
       const user = await storage.createUser(input);
       const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
       res.status(201).json({ token, user });
@@ -49,7 +49,7 @@ export async function registerRoutes(
     try {
       const input = api.auth.login.input.parse(req.body);
       const user = await storage.getUserByEmail(input.email);
-      
+
       // Basic plain text password check for demo purposes
       if (!user || user.password !== input.password) {
         return res.status(401).json({ message: "Invalid credentials" });
@@ -85,16 +85,12 @@ export async function registerRoutes(
     if (!account || account.userId !== req.user.id) return res.status(403).json({ message: "Forbidden" });
 
     const transactions = await storage.getTransactions(accountId);
-    
-    // 🔥 N+1 Queries: Intentionally fetching category for each transaction individually
-    const enriched = [];
-    for (const txn of transactions) {
-      const category = await storage.getCategory(txn.categoryId);
-      enriched.push({
-        ...txn,
-        category: category?.name || "Unknown"
-      });
-    }
+    const categories = await storage.getCategories();
+
+    const enriched = transactions.map(txn => ({
+      ...txn,
+      category: categories.find(c => c.id === txn.categoryId)?.name || "Unknown"
+    }));
 
     res.json(enriched);
   });
@@ -107,7 +103,7 @@ export async function registerRoutes(
   app.get(api.budgets.list.path, authenticateToken, async (req: any, res) => {
     const budgets = await storage.getBudgets(req.user.id);
     const categories = await storage.getCategories();
-    
+
     const enriched = budgets.map(b => ({
       ...b,
       category: categories.find(c => c.id === b.categoryId)?.name
@@ -137,7 +133,7 @@ export async function registerRoutes(
   app.post(api.transfers.create.path, authenticateToken, async (req: any, res) => {
     try {
       const input = api.transfers.create.input.parse(req.body);
-      
+
       const fromAcct = await storage.getAccount(input.fromAccountId);
       const toAcct = await storage.getAccount(input.toAccountId);
 
