@@ -15,7 +15,7 @@ export function useLogin() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
+
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to login");
@@ -45,7 +45,7 @@ export function useRegister() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      
+
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.message || "Failed to register");
@@ -70,6 +70,16 @@ export function useLogout() {
   const { toast } = useToast();
 
   return () => {
+    const token = localStorage.getItem("token");
+
+    // Notify server to blacklist the token (fire-and-forget)
+    if (token) {
+      fetch(api.auth.logout.path, {
+        method: api.auth.logout.method,
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => { });
+    }
+
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     queryClient.clear();
@@ -82,7 +92,7 @@ export function useUser() {
   // Simple synchronous user getter from localStorage for UI state
   const token = localStorage.getItem("token");
   const userStr = localStorage.getItem("user");
-  
+
   return {
     user: userStr ? JSON.parse(userStr) : null,
     isAuthenticated: !!token,
