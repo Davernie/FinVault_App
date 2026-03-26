@@ -98,6 +98,8 @@ export const api = {
           expenses: z.number(),
         })),
       },
+    },
+  },
   savingsGoals: {
     list: {
       method: 'GET' as const,

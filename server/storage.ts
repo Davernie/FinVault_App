@@ -132,6 +132,8 @@ export class DatabaseStorage implements IStorage {
         { accountId: toAccountId, categoryId: 1, amount, type: "credit", description: `Transfer from account #${fromAccountId}` },
       ]);
     });
+  }
+
   async getSavingsGoals(userId: number): Promise<SavingsGoal[]> {
     return await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
   }
