@@ -183,5 +183,64 @@ export async function registerRoutes(
     }
   });
 
+  // Analytics routes
+  app.get(api.analytics.spendingByCategory.path, authenticateToken, async (req: any, res) => {
+    try {
+      const txns = await storage.getTransactionsForUser(req.user.id);
+      const cats = await storage.getCategories();
+      const catMap = new Map(cats.map(c => [c.id, c]));
+
+      const totals = new Map<number, number>();
+      for (const txn of txns) {
+        if (txn.type === "debit") {
+          totals.set(txn.categoryId, (totals.get(txn.categoryId) || 0) + txn.amount);
+        }
+      }
+
+      const result = Array.from(totals.entries())
+        .map(([categoryId, total]) => {
+          const cat = catMap.get(categoryId);
+          return {
+            categoryId,
+            categoryName: cat?.name || "Unknown",
+            colorHex: cat?.colorHex || "#888888",
+            total,
+          };
+        })
+        .sort((a, b) => b.total - a.total);
+
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get(api.analytics.monthlyTrends.path, authenticateToken, async (req: any, res) => {
+    try {
+      const txns = await storage.getTransactionsForUser(req.user.id);
+
+      const months = new Map<string, { income: number; expenses: number }>();
+      for (const txn of txns) {
+        const d = txn.date ? new Date(txn.date) : new Date();
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const entry = months.get(key) || { income: 0, expenses: 0 };
+        if (txn.type === "credit") {
+          entry.income += txn.amount;
+        } else {
+          entry.expenses += txn.amount;
+        }
+        months.set(key, entry);
+      }
+
+      const result = Array.from(months.entries())
+        .map(([month, data]) => ({ month, ...data }))
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   return httpServer;
 }

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import {
   users, accounts, categories, transactions, budgets,
   type User, type Account, type Category, type Transaction, type Budget
@@ -19,6 +19,7 @@ export interface IStorage {
   getCategory(id: number): Promise<Category | undefined>;
 
   getTransactions(accountId: number): Promise<Transaction[]>;
+  getTransactionsForUser(userId: number): Promise<Transaction[]>;
   createTransaction(tx: Omit<Transaction, "id" | "date">): Promise<Transaction>;
 
   getBudgets(userId: number): Promise<Budget[]>;
@@ -72,6 +73,13 @@ export class DatabaseStorage implements IStorage {
 
   async getTransactions(accountId: number): Promise<Transaction[]> {
     return await db.select().from(transactions).where(eq(transactions.accountId, accountId));
+  }
+
+  async getTransactionsForUser(userId: number): Promise<Transaction[]> {
+    const userAccounts = await db.select({ id: accounts.id }).from(accounts).where(eq(accounts.userId, userId));
+    const accountIds = userAccounts.map(a => a.id);
+    if (accountIds.length === 0) return [];
+    return await db.select().from(transactions).where(inArray(transactions.accountId, accountIds));
   }
 
   async createTransaction(tx: Omit<Transaction, "id" | "date">): Promise<Transaction> {
