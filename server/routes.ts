@@ -85,16 +85,12 @@ export async function registerRoutes(
     if (!account || account.userId !== req.user.id) return res.status(403).json({ message: "Forbidden" });
 
     const transactions = await storage.getTransactions(accountId);
+    const categories = await storage.getCategories();
 
-    // 🔥 N+1 Queries: Intentionally fetching category for each transaction individually
-    const enriched = [];
-    for (const txn of transactions) {
-      const category = await storage.getCategory(txn.categoryId);
-      enriched.push({
-        ...txn,
-        category: category?.name || "Unknown"
-      });
-    }
+    const enriched = transactions.map(txn => ({
+      ...txn,
+      category: categories.find(c => c.id === txn.categoryId)?.name || "Unknown"
+    }));
 
     res.json(enriched);
   });
