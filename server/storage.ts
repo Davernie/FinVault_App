@@ -1,8 +1,8 @@
 import { db } from "./db";
 import { eq, sql } from "drizzle-orm";
 import {
-  users, accounts, categories, transactions, budgets,
-  type User, type Account, type Category, type Transaction, type Budget
+  users, accounts, categories, transactions, budgets, savingsGoals,
+  type User, type Account, type Category, type Transaction, type Budget, type SavingsGoal
 } from "@shared/schema";
 
 export interface IStorage {
@@ -23,6 +23,12 @@ export interface IStorage {
 
   getBudgets(userId: number): Promise<Budget[]>;
   createBudget(budget: Omit<Budget, "id">): Promise<Budget>;
+
+  getSavingsGoals(userId: number): Promise<SavingsGoal[]>;
+  getSavingsGoal(id: number): Promise<SavingsGoal | undefined>;
+  createSavingsGoal(goal: Omit<SavingsGoal, "id" | "createdAt">): Promise<SavingsGoal>;
+  updateSavingsGoal(id: number, data: Partial<Pick<SavingsGoal, "name" | "targetAmount" | "currentAmount" | "deadline">>): Promise<SavingsGoal>;
+  deleteSavingsGoal(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -86,6 +92,29 @@ export class DatabaseStorage implements IStorage {
   async createBudget(budget: Omit<Budget, "id">): Promise<Budget> {
     const [newBudget] = await db.insert(budgets).values(budget).returning();
     return newBudget;
+  }
+
+  async getSavingsGoals(userId: number): Promise<SavingsGoal[]> {
+    return await db.select().from(savingsGoals).where(eq(savingsGoals.userId, userId));
+  }
+
+  async getSavingsGoal(id: number): Promise<SavingsGoal | undefined> {
+    const [goal] = await db.select().from(savingsGoals).where(eq(savingsGoals.id, id));
+    return goal;
+  }
+
+  async createSavingsGoal(goal: Omit<SavingsGoal, "id" | "createdAt">): Promise<SavingsGoal> {
+    const [newGoal] = await db.insert(savingsGoals).values(goal).returning();
+    return newGoal;
+  }
+
+  async updateSavingsGoal(id: number, data: Partial<Pick<SavingsGoal, "name" | "targetAmount" | "currentAmount" | "deadline">>): Promise<SavingsGoal> {
+    const [updated] = await db.update(savingsGoals).set(data).where(eq(savingsGoals.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSavingsGoal(id: number): Promise<void> {
+    await db.delete(savingsGoals).where(eq(savingsGoals.id, id));
   }
 }
 

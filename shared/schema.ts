@@ -41,13 +41,25 @@ export const budgets = pgTable("budgets", {
   period: text("period").notNull(), // 'monthly', 'weekly'
 });
 
+export const savingsGoals = pgTable("savings_goals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: text("name").notNull(),
+  targetAmount: integer("target_amount").notNull(), // cents
+  currentAmount: integer("current_amount").notNull().default(0), // cents
+  deadline: timestamp("deadline"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertAccountSchema = createInsertSchema(accounts).omit({ id: true });
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ id: true, date: true });
 export const insertBudgetSchema = createInsertSchema(budgets).omit({ id: true });
+export const insertSavingsGoalSchema = createInsertSchema(savingsGoals).omit({ id: true, createdAt: true });
 
 export type User = typeof users.$inferSelect;
 export type Account = typeof accounts.$inferSelect;
 export type Category = typeof categories.$inferSelect;
 export type Transaction = typeof transactions.$inferSelect;
 export type Budget = typeof budgets.$inferSelect;
+export type SavingsGoal = typeof savingsGoals.$inferSelect;

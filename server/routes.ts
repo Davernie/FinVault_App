@@ -183,5 +183,64 @@ export async function registerRoutes(
     }
   });
 
+  // Savings Goals
+  app.get(api.savingsGoals.list.path, authenticateToken, async (req: any, res) => {
+    const goals = await storage.getSavingsGoals(req.user.id);
+    res.json(goals);
+  });
+
+  app.post(api.savingsGoals.create.path, authenticateToken, async (req: any, res) => {
+    try {
+      const input = api.savingsGoals.create.input.parse(req.body);
+      const goal = await storage.createSavingsGoal({
+        userId: req.user.id,
+        name: input.name,
+        targetAmount: input.targetAmount,
+        currentAmount: 0,
+        deadline: input.deadline ? new Date(input.deadline) : null,
+      });
+      res.status(201).json(goal);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch(api.savingsGoals.update.path, authenticateToken, async (req: any, res) => {
+    try {
+      const id = Number(req.params.id);
+      const existing = await storage.getSavingsGoal(id);
+      if (!existing) return res.status(404).json({ message: "Goal not found" });
+      if (existing.userId !== req.user.id) return res.status(403).json({ message: "Forbidden" });
+
+      const input = api.savingsGoals.update.input.parse(req.body);
+      const updateData: any = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.targetAmount !== undefined) updateData.targetAmount = input.targetAmount;
+      if (input.currentAmount !== undefined) updateData.currentAmount = input.currentAmount;
+      if (input.deadline !== undefined) updateData.deadline = input.deadline ? new Date(input.deadline) : null;
+
+      const updated = await storage.updateSavingsGoal(id, updateData);
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete(api.savingsGoals.delete.path, authenticateToken, async (req: any, res) => {
+    const id = Number(req.params.id);
+    const existing = await storage.getSavingsGoal(id);
+    if (!existing) return res.status(404).json({ message: "Goal not found" });
+    if (existing.userId !== req.user.id) return res.status(403).json({ message: "Forbidden" });
+
+    await storage.deleteSavingsGoal(id);
+    res.status(204).send();
+  });
+
   return httpServer;
 }
