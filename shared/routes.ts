@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { users, accounts, categories, budgets } from './schema';
+import { users, accounts, categories, budgets, savingsGoals } from './schema';
 
 export const errorSchemas = {
   validation: z.object({ message: z.string(), field: z.string().optional() }),
@@ -98,6 +98,37 @@ export const api = {
           expenses: z.number(),
         })),
       },
+  savingsGoals: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/savings-goals' as const,
+      responses: { 200: z.array(z.custom<typeof savingsGoals.$inferSelect>()) },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/savings-goals' as const,
+      input: z.object({
+        name: z.string().min(1, "Name is required"),
+        targetAmount: z.coerce.number().positive("Target must be positive"),
+        deadline: z.string().nullable().optional(),
+      }),
+      responses: { 201: z.custom<typeof savingsGoals.$inferSelect>() },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/savings-goals/:id' as const,
+      input: z.object({
+        name: z.string().min(1).optional(),
+        targetAmount: z.coerce.number().positive().optional(),
+        currentAmount: z.coerce.number().min(0).optional(),
+        deadline: z.string().nullable().optional(),
+      }),
+      responses: { 200: z.custom<typeof savingsGoals.$inferSelect>() },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/savings-goals/:id' as const,
+      responses: { 204: z.null() },
     },
   },
 };
