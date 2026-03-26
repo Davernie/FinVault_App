@@ -23,6 +23,8 @@ export interface IStorage {
 
   getBudgets(userId: number): Promise<Budget[]>;
   createBudget(budget: Omit<Budget, "id">): Promise<Budget>;
+
+  transferFunds(fromAccountId: number, toAccountId: number, amount: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -86,6 +88,37 @@ export class DatabaseStorage implements IStorage {
   async createBudget(budget: Omit<Budget, "id">): Promise<Budget> {
     const [newBudget] = await db.insert(budgets).values(budget).returning();
     return newBudget;
+  }
+
+  async transferFunds(fromAccountId: number, toAccountId: number, amount: number): Promise<void> {
+    await db.transaction(async (tx) => {
+      // Lock both rows to block concurrent transfers until this transaction completes
+      const { rows: [fromAcct] } = await tx.execute(
+        sql`SELECT balance FROM accounts WHERE id = ${fromAccountId} FOR UPDATE`
+      ) as { rows: { balance: number }[] };
+      await tx.execute(
+        sql`SELECT balance FROM accounts WHERE id = ${toAccountId} FOR UPDATE`
+      );
+
+      if (!fromAcct || fromAcct.balance < amount) {
+        throw new Error("Insufficient funds");
+      }
+
+      // Simulate latency to make race condition testing visible
+      await new Promise(resolve => setTimeout(resolve, 8));
+
+      await tx.update(accounts)
+        .set({ balance: sql`${accounts.balance} - ${amount}` })
+        .where(eq(accounts.id, fromAccountId));
+      await tx.update(accounts)
+        .set({ balance: sql`${accounts.balance} + ${amount}` })
+        .where(eq(accounts.id, toAccountId));
+
+      await tx.insert(transactions).values([
+        { accountId: fromAccountId, categoryId: 1, amount, type: "debit", description: `Transfer to account #${toAccountId}` },
+        { accountId: toAccountId, categoryId: 1, amount, type: "credit", description: `Transfer from account #${fromAccountId}` },
+      ]);
+    });
   }
 }
 
