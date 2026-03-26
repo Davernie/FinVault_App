@@ -74,7 +74,32 @@ export const api = {
       path: '/api/categories' as const,
       responses: { 200: z.array(z.custom<typeof categories.$inferSelect>()) },
     }
-  }
+  },
+  analytics: {
+    spendingByCategory: {
+      method: 'GET' as const,
+      path: '/api/analytics/spending-by-category' as const,
+      responses: {
+        200: z.array(z.object({
+          categoryId: z.number(),
+          categoryName: z.string(),
+          colorHex: z.string(),
+          total: z.number(),
+        })),
+      },
+    },
+    monthlyTrends: {
+      method: 'GET' as const,
+      path: '/api/analytics/monthly-trends' as const,
+      responses: {
+        200: z.array(z.object({
+          month: z.string(),
+          income: z.number(),
+          expenses: z.number(),
+        })),
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
